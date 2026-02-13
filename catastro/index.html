@@ -1,0 +1,635 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge">
+        <meta name="viewport" content="initial-scale=1,user-scalable=no,maximum-scale=1,width=device-width">
+        <meta name="mobile-web-app-capable" content="yes">
+        <meta name="apple-mobile-web-app-capable" content="yes">
+        <link rel="stylesheet" href="css/leaflet.css">
+        <link rel="stylesheet" href="css/L.Control.Layers.Tree.css">
+        <link rel="stylesheet" href="css/qgis2web.css">
+        <link rel="stylesheet" href="css/fontawesome-all.min.css">
+        <link rel="stylesheet" href="css/leaflet-search.css">
+        <link rel="stylesheet" href="css/filter.css">
+<link rel="stylesheet" href="css/nouislider.min.css">
+        <link rel="stylesheet" href="css/leaflet.photon.css">
+        <link rel="stylesheet" href="css/leaflet-measure.css">
+        <style>
+        html, body, #map {
+            width: 100%;
+            height: 100%;
+            padding: 0;
+            margin: 0;
+        }
+        </style>
+        <title></title>
+    </head>
+    <body>
+        <div id="map">
+        </div>
+        <script src="js/qgis2web_expressions.js"></script>
+        <script src="js/leaflet.js"></script>
+        <script src="js/L.Control.Layers.Tree.min.js"></script>
+        <script src="js/multi-style-layer.js"></script>
+        <script src="js/leaflet.rotatedMarker.js"></script>
+        <script src="js/leaflet.pattern.js"></script>
+        <script src="js/leaflet-hash.js"></script>
+        <script src="js/Autolinker.min.js"></script>
+        <script src="js/rbush.min.js"></script>
+        <script src="js/labelgun.min.js"></script>
+        <script src="js/labels.js"></script>
+        <script src="js/leaflet.photon.js"></script>
+        <script src="js/leaflet-measure.js"></script>
+        <script src="js/leaflet-search.js"></script>
+        <script src="js/tailDT.js"></script>
+<script src="js/nouislider.min.js"></script>
+<script src="js/wNumb.js"></script>
+        <script src="data/catastro_2023_5343_1.js"></script>
+        <script src="data/limitecorregido_2.js"></script>
+        <script src="data/Accesos5343_3.js"></script>
+        <script>
+        var map = L.map('map', {
+            zoomControl:false, maxZoom:28, minZoom:1
+        }).fitBounds([[-40.23719029653427,-72.48640381871672],[-39.00967998111401,-69.42552195607522]]);
+        var hash = new L.Hash(map);
+        map.attributionControl.setPrefix('<a href="https://github.com/tomchadwin/qgis2web" target="_blank">qgis2web</a> &middot; <a href="https://leafletjs.com" title="A JS library for interactive maps">Leaflet</a> &middot; <a href="https://qgis.org">QGIS</a>');
+        var autolinker = new Autolinker({truncate: {length: 30, location: 'smart'}});
+        // remove popup's row if "visible-with-data"
+        function removeEmptyRowsFromPopupContent(content, feature) {
+         var tempDiv = document.createElement('div');
+         tempDiv.innerHTML = content;
+         var rows = tempDiv.querySelectorAll('tr');
+         for (var i = 0; i < rows.length; i++) {
+             var td = rows[i].querySelector('td.visible-with-data');
+             var key = td ? td.id : '';
+             if (td && td.classList.contains('visible-with-data') && feature.properties[key] == null) {
+                 rows[i].parentNode.removeChild(rows[i]);
+             }
+         }
+         return tempDiv.innerHTML;
+        }
+        // modify popup if contains media
+        function addClassToPopupIfMedia(content, popup) {
+            var tempDiv = document.createElement('div');
+            tempDiv.innerHTML = content;
+            var imgTd = tempDiv.querySelector('td img');
+            if (imgTd) {
+                var src = imgTd.getAttribute('src');
+                if (/\.(jpg|jpeg|png|gif|bmp|webp|avif)$/i.test(src)) {
+                    popup._contentNode.classList.add('media');
+                    setTimeout(function() {
+                        popup.update();
+                    }, 10);
+                } else if (/\.(mp3|wav|ogg|aac)$/i.test(src)) {
+                    var audio = document.createElement('audio');
+                    audio.controls = true;
+                    audio.src = src;
+                    imgTd.parentNode.replaceChild(audio, imgTd);
+                    popup._contentNode.classList.add('media');
+                    setTimeout(function() {
+                        popup.setContent(tempDiv.innerHTML);
+                        popup.update();
+                    }, 10);
+                } else if (/\.(mp4|webm|ogg|mov)$/i.test(src)) {
+                    var video = document.createElement('video');
+                    video.controls = true;
+                    video.src = src;
+                    video.style.width = "400px";
+                    video.style.height = "300px";
+                    video.style.maxHeight = "60vh";
+                    video.style.maxWidth = "60vw";
+                    imgTd.parentNode.replaceChild(video, imgTd);
+                    popup._contentNode.classList.add('media');
+                    // Aggiorna il popup quando il video carica i metadati
+                    video.addEventListener('loadedmetadata', function() {
+                        popup.update();
+                    });
+                    setTimeout(function() {
+                        popup.setContent(tempDiv.innerHTML);
+                        popup.update();
+                    }, 10);
+                } else {
+                    popup._contentNode.classList.remove('media');
+                }
+            } else {
+                popup._contentNode.classList.remove('media');
+            }
+        }
+        var zoomControl = L.control.zoom({
+            position: 'topleft'
+        }).addTo(map);
+        var measureControl = new L.Control.Measure({
+            position: 'topleft',
+            primaryLengthUnit: 'meters',
+            secondaryLengthUnit: 'kilometers',
+            primaryAreaUnit: 'sqmeters',
+            secondaryAreaUnit: 'hectares'
+        });
+        measureControl.addTo(map);
+        document.getElementsByClassName('leaflet-control-measure-toggle')[0].innerHTML = '';
+        document.getElementsByClassName('leaflet-control-measure-toggle')[0].className += ' fas fa-ruler';
+        var bounds_group = new L.featureGroup([]);
+        function setBounds() {
+        }
+        map.createPane('pane_GoogleSatellite_0');
+        map.getPane('pane_GoogleSatellite_0').style.zIndex = 400;
+        var layer_GoogleSatellite_0 = L.tileLayer('https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}', {
+            pane: 'pane_GoogleSatellite_0',
+            opacity: 1.0,
+            attribution: '<a href="https://www.google.at/permissions/geoguidelines/attr-guide.html">Map data ©2015 Google</a>',
+            minZoom: 1,
+            maxZoom: 28,
+            minNativeZoom: 0,
+            maxNativeZoom: 20
+        });
+        layer_GoogleSatellite_0;
+        map.addLayer(layer_GoogleSatellite_0);
+        function pop_catastro_2023_5343_1(feature, layer) {
+            var popupContent = '<table>\
+                    <tr>\
+                        <th scope="row">NRO_DPTO</th>\
+                        <td>' + (feature.properties['NRO_DPTO'] !== null ? autolinker.link(String(feature.properties['NRO_DPTO']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">DEPARTAMEN</th>\
+                        <td>' + (feature.properties['DEPARTAMEN'] !== null ? autolinker.link(String(feature.properties['DEPARTAMEN']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">NRO_LOC</th>\
+                        <td>' + (feature.properties['NRO_LOC'] !== null ? autolinker.link(String(feature.properties['NRO_LOC']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">LOCALIDAD</th>\
+                        <td>' + (feature.properties['LOCALIDAD'] !== null ? autolinker.link(String(feature.properties['LOCALIDAD']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">NOMENCLATU</th>\
+                        <td>' + (feature.properties['NOMENCLATU'] !== null ? autolinker.link(String(feature.properties['NOMENCLATU']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">DESIG_LOTE</th>\
+                        <td>' + (feature.properties['DESIG_LOTE'] !== null ? autolinker.link(String(feature.properties['DESIG_LOTE']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">TIPO_PARCE</th>\
+                        <td>' + (feature.properties['TIPO_PARCE'] !== null ? autolinker.link(String(feature.properties['TIPO_PARCE']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">PH</th>\
+                        <td>' + (feature.properties['PH'] !== null ? autolinker.link(String(feature.properties['PH']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">VIGENCIA</th>\
+                        <td>' + (feature.properties['VIGENCIA'] !== null ? autolinker.link(String(feature.properties['VIGENCIA']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">TRAMITE</th>\
+                        <td>' + (feature.properties['TRAMITE'] !== null ? autolinker.link(String(feature.properties['TRAMITE']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">FECHA_REG</th>\
+                        <td>' + (feature.properties['FECHA_REG'] !== null ? autolinker.link(String(feature.properties['FECHA_REG']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">SUP_MENSUR</th>\
+                        <td>' + (feature.properties['SUP_MENSUR'] !== null ? autolinker.link(String(feature.properties['SUP_MENSUR']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">COND_REG</th>\
+                        <td>' + (feature.properties['COND_REG'] !== null ? autolinker.link(String(feature.properties['COND_REG']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">PAR_ID</th>\
+                        <td>' + (feature.properties['PAR_ID'] !== null ? autolinker.link(String(feature.properties['PAR_ID']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">OBJECTID</th>\
+                        <td>' + (feature.properties['OBJECTID'] !== null ? autolinker.link(String(feature.properties['OBJECTID']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">ESRI_OID</th>\
+                        <td>' + (feature.properties['ESRI_OID'] !== null ? autolinker.link(String(feature.properties['ESRI_OID']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">link</th>\
+                        <td>' + (feature.properties['link'] !== null ? autolinker.link(String(feature.properties['link']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                </table>';
+            var content = removeEmptyRowsFromPopupContent(popupContent, feature);
+			layer.on('popupopen', function(e) {
+				addClassToPopupIfMedia(content, e.popup);
+			});
+			layer.bindPopup(content, { maxHeight: 400 });
+        }
+
+        function style_catastro_2023_5343_1_0() {
+            return {
+                pane: 'pane_catastro_2023_5343_1',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0, 
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(255,252,172,1.0)',
+                interactive: true,
+            }
+        }
+        map.createPane('pane_catastro_2023_5343_1');
+        map.getPane('pane_catastro_2023_5343_1').style.zIndex = 401;
+        map.getPane('pane_catastro_2023_5343_1').style['mix-blend-mode'] = 'normal';
+        var layer_catastro_2023_5343_1 = new L.geoJson(json_catastro_2023_5343_1, {
+            attribution: '',
+            interactive: true,
+            dataVar: 'json_catastro_2023_5343_1',
+            layerName: 'layer_catastro_2023_5343_1',
+            pane: 'pane_catastro_2023_5343_1',
+            onEachFeature: pop_catastro_2023_5343_1,
+            style: style_catastro_2023_5343_1_0,
+        });
+        bounds_group.addLayer(layer_catastro_2023_5343_1);
+        map.addLayer(layer_catastro_2023_5343_1);
+        function pop_limitecorregido_2(feature, layer) {
+            var popupContent = '<table>\
+                    <tr>\
+                        <th scope="row">Name</th>\
+                        <td>' + (feature.properties['Name'] !== null ? autolinker.link(String(feature.properties['Name']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">descriptio</th>\
+                        <td>' + (feature.properties['descriptio'] !== null ? autolinker.link(String(feature.properties['descriptio']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">timestamp</th>\
+                        <td>' + (feature.properties['timestamp'] !== null ? autolinker.link(String(feature.properties['timestamp']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">begin</th>\
+                        <td>' + (feature.properties['begin'] !== null ? autolinker.link(String(feature.properties['begin']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">end</th>\
+                        <td>' + (feature.properties['end'] !== null ? autolinker.link(String(feature.properties['end']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">altitudeMo</th>\
+                        <td>' + (feature.properties['altitudeMo'] !== null ? autolinker.link(String(feature.properties['altitudeMo']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">tessellate</th>\
+                        <td>' + (feature.properties['tessellate'] !== null ? autolinker.link(String(feature.properties['tessellate']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">extrude</th>\
+                        <td>' + (feature.properties['extrude'] !== null ? autolinker.link(String(feature.properties['extrude']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">visibility</th>\
+                        <td>' + (feature.properties['visibility'] !== null ? autolinker.link(String(feature.properties['visibility']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">drawOrder</th>\
+                        <td>' + (feature.properties['drawOrder'] !== null ? autolinker.link(String(feature.properties['drawOrder']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">icon</th>\
+                        <td>' + (feature.properties['icon'] !== null ? autolinker.link(String(feature.properties['icon']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                </table>';
+            var content = removeEmptyRowsFromPopupContent(popupContent, feature);
+			layer.on('popupopen', function(e) {
+				addClassToPopupIfMedia(content, e.popup);
+			});
+			layer.bindPopup(content, { maxHeight: 400 });
+        }
+
+        function style_limitecorregido_2_0() {
+            return {
+                pane: 'pane_limitecorregido_2',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 3.0, 
+                fillOpacity: 0,
+                interactive: true,
+            }
+        }
+        function style_limitecorregido_2_1() {
+            return {
+                pane: 'pane_limitecorregido_2',
+                opacity: 1,
+                color: 'rgba(255,255,255,1.0)',
+                dashArray: '6.0,3.0',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 3.0, 
+                fillOpacity: 0,
+                interactive: true,
+            }
+        }
+        map.createPane('pane_limitecorregido_2');
+        map.getPane('pane_limitecorregido_2').style.zIndex = 402;
+        map.getPane('pane_limitecorregido_2').style['mix-blend-mode'] = 'normal';
+        var layer_limitecorregido_2 = new L.geoJson.multiStyle(json_limitecorregido_2, {
+            attribution: '',
+            interactive: true,
+            dataVar: 'json_limitecorregido_2',
+            layerName: 'layer_limitecorregido_2',
+            pane: 'pane_limitecorregido_2',
+            onEachFeature: pop_limitecorregido_2,
+            styles: [style_limitecorregido_2_0,style_limitecorregido_2_1,]
+        });
+        bounds_group.addLayer(layer_limitecorregido_2);
+        map.addLayer(layer_limitecorregido_2);
+        function pop_Accesos5343_3(feature, layer) {
+            var popupContent = '<table>\
+                    <tr>\
+                        <th scope="row">LENGTH</th>\
+                        <td>' + (feature.properties['LENGTH'] !== null ? autolinker.link(String(feature.properties['LENGTH']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">RUTAS_ID</th>\
+                        <td>' + (feature.properties['RUTAS_ID'] !== null ? autolinker.link(String(feature.properties['RUTAS_ID']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">CATEGORIA</th>\
+                        <td>' + (feature.properties['CATEGORIA'] !== null ? autolinker.link(String(feature.properties['CATEGORIA']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">TIPO</th>\
+                        <td>' + (feature.properties['TIPO'] !== null ? autolinker.link(String(feature.properties['TIPO']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">INT_USO_AD</th>\
+                        <td>' + (feature.properties['INT_USO_AD'] !== null ? autolinker.link(String(feature.properties['INT_USO_AD']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">MODALIDAD</th>\
+                        <td>' + (feature.properties['MODALIDAD'] !== null ? autolinker.link(String(feature.properties['MODALIDAD']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">OBSERVACIO</th>\
+                        <td>' + (feature.properties['OBSERVACIO'] !== null ? autolinker.link(String(feature.properties['OBSERVACIO']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">COD</th>\
+                        <td>' + (feature.properties['COD'] !== null ? autolinker.link(String(feature.properties['COD']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">GPS</th>\
+                        <td>' + (feature.properties['GPS'] !== null ? autolinker.link(String(feature.properties['GPS']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">DENOMINACI</th>\
+                        <td>' + (feature.properties['DENOMINACI'] !== null ? autolinker.link(String(feature.properties['DENOMINACI']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">KM</th>\
+                        <td>' + (feature.properties['KM'] !== null ? autolinker.link(String(feature.properties['KM']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">SLength</th>\
+                        <td>' + (feature.properties['SLength'] !== null ? autolinker.link(String(feature.properties['SLength']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">tipo2</th>\
+                        <td>' + (feature.properties['tipo2'] !== null ? autolinker.link(String(feature.properties['tipo2']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">R_Hanta</th>\
+                        <td>' + (feature.properties['R_Hanta'] !== null ? autolinker.link(String(feature.properties['R_Hanta']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">Eventos</th>\
+                        <td>' + (feature.properties['Eventos'] !== null ? autolinker.link(String(feature.properties['Eventos']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">TIPO_CAMIN</th>\
+                        <td>' + (feature.properties['TIPO_CAMIN'] !== null ? autolinker.link(String(feature.properties['TIPO_CAMIN']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">numeracion</th>\
+                        <td>' + (feature.properties['numeracion'] !== null ? autolinker.link(String(feature.properties['numeracion']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                    <tr>\
+                        <th scope="row">codigo</th>\
+                        <td>' + (feature.properties['codigo'] !== null ? autolinker.link(String(feature.properties['codigo']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
+                    </tr>\
+                </table>';
+            var content = removeEmptyRowsFromPopupContent(popupContent, feature);
+			layer.on('popupopen', function(e) {
+				addClassToPopupIfMedia(content, e.popup);
+			});
+			layer.bindPopup(content, { maxHeight: 400 });
+        }
+
+        function style_Accesos5343_3_0() {
+            return {
+                pane: 'pane_Accesos5343_3',
+                opacity: 1,
+                color: 'rgba(255,0,1,1.0)',
+                dashArray: '',
+                lineCap: 'square',
+                lineJoin: 'bevel',
+                weight: 1.0,
+                fillOpacity: 0,
+                interactive: true,
+            }
+        }
+        map.createPane('pane_Accesos5343_3');
+        map.getPane('pane_Accesos5343_3').style.zIndex = 403;
+        map.getPane('pane_Accesos5343_3').style['mix-blend-mode'] = 'normal';
+        var layer_Accesos5343_3 = new L.geoJson(json_Accesos5343_3, {
+            attribution: '',
+            interactive: true,
+            dataVar: 'json_Accesos5343_3',
+            layerName: 'layer_Accesos5343_3',
+            pane: 'pane_Accesos5343_3',
+            onEachFeature: pop_Accesos5343_3,
+            style: style_Accesos5343_3_0,
+        });
+        bounds_group.addLayer(layer_Accesos5343_3);
+        map.addLayer(layer_Accesos5343_3);
+        var overlaysTree = [
+            {label: '<img src="legend/Accesos5343_3.png" /> Accesos5343', layer: layer_Accesos5343_3},
+            {label: '<img src="legend/limitecorregido_2.png" /> limite corregido', layer: layer_limitecorregido_2},
+            {label: '<img src="legend/catastro_2023_5343_1.png" /> catastro_2023_5343', layer: layer_catastro_2023_5343_1},
+            {label: "Google Satellite", layer: layer_GoogleSatellite_0},]
+        var lay = L.control.layers.tree(null, overlaysTree,{
+            //namedToggle: true,
+            //selectorBack: false,
+            //closedSymbol: '&#8862; &#x1f5c0;',
+            //openedSymbol: '&#8863; &#x1f5c1;',
+            //collapseAll: 'Collapse all',
+            //expandAll: 'Expand all',
+            collapsed: true,
+        });
+        lay.addTo(map);
+        setBounds();
+        map.addControl(new L.Control.Search({
+            layer: layer_catastro_2023_5343_1,
+            initial: false,
+            hideMarkerOnCollapse: true,
+            propertyName: 'NOMENCLATU'}));
+        if (typeof url === 'undefined') {
+            document.getElementsByClassName('search-button')[0].className += ' fa fa-binoculars';
+        } else {
+            document.getElementsByClassName('search-button')[1].className += ' fa fa-binoculars';
+        }
+        var mapDiv = document.getElementById('map');
+        var row = document.createElement('div');
+        row.className="row";
+        row.id="all";
+        row.style.height = "100%";
+        var col1 = document.createElement('div');
+        col1.className="col9";
+        col1.id = "mapWindow";
+        col1.style.height = "99%";
+        col1.style.width = "80%";
+        col1.style.display = "inline-block";
+        var col2 = document.createElement('div');
+        col2.className="col3";
+        col2.id = "menu";
+        col2.style.display = "inline-block";
+        mapDiv.parentNode.insertBefore(row, mapDiv);
+        document.getElementById("all").appendChild(col1);
+        document.getElementById("all").appendChild(col2);
+        col1.appendChild(mapDiv)
+        var Filters = {"CATEGORIA": "str"};
+        function filterFunc() {
+          map.eachLayer(function(lyr){
+          if ("options" in lyr && "dataVar" in lyr["options"]){
+            features = this[lyr["options"]["dataVar"]].features.slice(0);
+            try{
+              for (key in Filters){
+                keyS = key.replace(/[^a-zA-Z0-9_]/g, "")
+                if (Filters[key] == "str" || Filters[key] == "bool"){
+                  var selection = [];
+                  var options = document.getElementById("sel_" + keyS).options
+                  for (var i=0; i < options.length; i++) {
+                    if (options[i].selected) selection.push(options[i].value);
+                  }
+                    try{
+                      if (key in features[0].properties){
+                        for (i = features.length - 1;
+                          i >= 0; --i){
+                          if (selection.indexOf(
+                          features[i].properties[key])<0
+                          && selection.length>0) {
+                          features.splice(i,1);
+                          }
+                        }
+                      }
+                    } catch(err){
+                  }
+                }
+                if (Filters[key] == "int"){
+                  sliderVals =  document.getElementById(
+                    "div_" + keyS).noUiSlider.get();
+                  try{
+                    if (key in features[0].properties){
+                    for (i = features.length - 1; i >= 0; --i){
+                      if (parseInt(features[i].properties[key])
+                          < sliderVals[0]
+                          || parseInt(features[i].properties[key])
+                          > sliderVals[1]){
+                            features.splice(i,1);
+                          }
+                        }
+                      }
+                    } catch(err){
+                    }
+                  }
+                if (Filters[key] == "real"){
+                  sliderVals =  document.getElementById(
+                    "div_" + keyS).noUiSlider.get();
+                  try{
+                    if (key in features[0].properties){
+                    for (i = features.length - 1; i >= 0; --i){
+                      if (features[i].properties[key]
+                          < sliderVals[0]
+                          || features[i].properties[key]
+                          > sliderVals[1]){
+                            features.splice(i,1);
+                          }
+                        }
+                      }
+                    } catch(err){
+                    }
+                  }
+                if (Filters[key] == "date"
+                  || Filters[key] == "datetime"
+                  || Filters[key] == "time"){
+                  try{
+                    if (key in features[0].properties){
+                      HTMLkey = key.replace(/[&\/\\#,+()$~%.'":*?<>{} ]/g, '');
+                      startdate = document.getElementById("dat_" +
+                        HTMLkey + "_date1").value.replace(" ", "T");
+                      enddate = document.getElementById("dat_" +
+                        HTMLkey + "_date2").value.replace(" ", "T");
+                      for (i = features.length - 1; i >= 0; --i){
+                        if (features[i].properties[key] < startdate
+                          || features[i].properties[key] > enddate){
+                          features.splice(i,1);
+                        }
+                      }
+                    }
+                  } catch(err){
+                  }
+                }
+              }
+            } catch(err){
+            }
+          this[lyr["options"]["layerName"]].clearLayers();
+          this[lyr["options"]["layerName"]].addData(features);
+          }
+          })
+        }
+            document.getElementById("menu").appendChild(
+                document.createElement("div"));
+            var div_CATEGORIA = document.createElement('div');
+            div_CATEGORIA.id = "div_CATEGORIA";
+            div_CATEGORIA.className= "filterselect";
+            document.getElementById("menu").appendChild(div_CATEGORIA);
+            sel_CATEGORIA = document.createElement('select');
+            sel_CATEGORIA.multiple = true;
+            sel_CATEGORIA.size = 10;
+            sel_CATEGORIA.id = "sel_CATEGORIA";
+            var CATEGORIA_options_str = "<option value='' unselected></option>";
+            sel_CATEGORIA.onchange = function(){filterFunc()};
+            CATEGORIA_options_str  += '<option value="NULL">NULL</option>';
+            CATEGORIA_options_str  += '<option value="Calle">Calle</option>';
+            CATEGORIA_options_str  += '<option value="Camino secundario">Camino secundario</option>';
+            CATEGORIA_options_str  += '<option value="Ruta Nacional Chile">Ruta Nacional Chile</option>';
+            CATEGORIA_options_str  += '<option value="Ruta Nacional consolidada">Ruta Nacional consolidada</option>';
+            CATEGORIA_options_str  += '<option value="Ruta Nacional pavimentada">Ruta Nacional pavimentada</option>';
+            CATEGORIA_options_str  += '<option value="Ruta Provincial consolidada">Ruta Provincial consolidada</option>';
+            CATEGORIA_options_str  += '<option value="Ruta Provincial pavimentada">Ruta Provincial pavimentada</option>';
+            CATEGORIA_options_str  += '<option value="Ruta Regional Chile">Ruta Regional Chile</option>';
+            CATEGORIA_options_str  += '<option value="Sendas habilitadas">Sendas habilitadas</option>';
+            CATEGORIA_options_str  += '<option value="Sendas no habilitadas">Sendas no habilitadas</option>';
+            sel_CATEGORIA.innerHTML = CATEGORIA_options_str;
+            div_CATEGORIA.appendChild(sel_CATEGORIA);
+            var lab_CATEGORIA = document.createElement('div');
+            lab_CATEGORIA.innerHTML = 'CATEGORIA';
+            lab_CATEGORIA.className = 'filterlabel';
+            div_CATEGORIA.appendChild(lab_CATEGORIA);
+            var reset_CATEGORIA = document.createElement('div');
+            reset_CATEGORIA.innerHTML = 'clear filter';
+            reset_CATEGORIA.className = 'filterlabel';
+            reset_CATEGORIA.onclick = function() {
+                var options = document.getElementById("sel_CATEGORIA").options;
+                for (var i=0; i < options.length; i++) {
+                    options[i].selected = false;
+                }
+                filterFunc();
+            };
+            div_CATEGORIA.appendChild(reset_CATEGORIA);
+        </script>        
+    </body>
+</html>
